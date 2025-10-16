@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Villa of 42 Years — Advanced Battle Simulation</title>
+  <style>
+    :root{--bg:#07111a;--card:#0f2430;--accent:#6ad3ff;--muted:#9fb7c2}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,var(--bg) 0%, #06202a 60%);color:#e6f7fb;overflow:hidden}
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;backdrop-filter:blur(6px)}
+    h1{font-size:18px;margin:0;letter-spacing:0.6px}
+    .sub{color:var(--muted);font-size:12px}
+
+    .stage{position:absolute;inset:84px 24px 24px;border-radius:12px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));box-shadow:0 10px 30px rgba(2,12,18,0.6);overflow:hidden}
+    .layout{display:flex;height:100%}
+    .left{width:420px;min-width:300px;padding:12px;display:flex;flex-direction:column;gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;box-shadow:0 6px 16px rgba(0,0,0,0.4);}
+    .center{flex:1;padding:12px;display:flex;flex-direction:column}
+    #villaCanvas{flex:1;border-radius:10px;background:linear-gradient(180deg,#071624,#0b2b34);width:100%}
+    .row{display:flex;gap:10px;align-items:center}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px}
+    .healthBar{height:10px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden}
+    .healthBar > b{display:block;height:100%;background:linear-gradient(90deg,#ff7b7b,#ffd36b);width:100%}
+    footer{display:flex;justify-content:space-between;padding:8px 16px;color:var(--muted);font-size:13px}
+    .controls button{margin-right:6px}
+    .small{font-size:12px}
+    @media (max-width:900px){.left{display:none}.stage{inset:72px 12px 12px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Villa of 42 Years — Advanced Battle Simulation</h1>
+      <div class="sub">Pham Hoang Hai · The Notch · Nguyen Khanh Bang — fight, defend & survive</div>
+    </div>
+    <div class="sub">Stable build · leaves enabled</div>
+  </header>
+
+  <div class="stage">
+    <div class="layout">
+      <aside class="left">
+        <div class="card">
+          <strong>Villa Status</strong>
+          <div class="muted small" style="margin-top:8px">House Health</div>
+          <div class="healthBar" style="margin-top:6px"><b id="houseBar"></b></div>
+          <div class="muted small" style="margin-top:8px">Fence Health</div>
+          <div class="healthBar" style="margin-top:6px"><b id="fenceBar"></b></div>
+          <div style="margin-top:10px" class="muted">Fence status: <span id="fenceStatus">Active</span></div>
+          <div style="margin-top:8px"><button id="repairFence">Repair Fence</button><button id="fortifyHouse">Fortify House</button></div>
+        </div>
+
+        <div class="card">
+          <strong>Characters</strong>
+          <div style="margin-top:8px">
+            <div><strong>Pham Hoang Hai</strong> <span class="muted">(player)</span></div>
+            <div class="small muted">Health</div>
+            <div class="healthBar"><b id="phamBar"></b></div>
+            <div style="margin-top:6px">Weapon: <select id="phamWeapon"></select></div>
+            <div style="margin-top:6px"><button id="phamAttack">Attack</button><button id="phamHeal">Heal</button></div>
+          </div>
+
+          <hr style="opacity:0.06;margin:12px 0">
+
+          <div>
+            <div><strong>The Notch</strong></div>
+            <div class="small muted">Health</div>
+            <div class="healthBar"><b id="notchBar"></b></div>
+            <div style="margin-top:6px">Weapon: <select id="notchWeapon"></select></div>
+            <div style="margin-top:6px"><button id="notchAttack">Attack</button><button id="notchHeal">Heal</button></div>
+          </div>
+
+          <hr style="opacity:0.06;margin:12px 0">
+
+          <div>
+            <div><strong>Nguyen Khanh Bang</strong></div>
+            <div class="small muted">Health</div>
+            <div class="healthBar"><b id="bangBar"></b></div>
+            <div style="margin-top:6px">Weapon: <select id="bangWeapon"></select></div>
+            <div style="margin-top:6px"><button id="bangAttack">Attack</button><button id="bangHeal">Heal</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Zombies & Simulation</strong>
+          <div class="muted small" style="margin-top:8px">Zombies alive: <span id="zCount">0</span></div>
+          <div style="margin-top:8px"><button id="spawnWave">Spawn Wave</button> <button id="toggleAuto">Toggle Auto-Battle</button></div>
+          <div style="margin-top:8px" class="muted">Simulation speed:<input id="simSpeed" type="range" min="0.25" max="2" step="0.25" value="1" /></div>
+        </div>
+
+        <div class="card">
+          <strong>Puzzle — Triangular Sum</strong>
+          <div class="muted" style="margin-top:8px">Enter numbers comma-separated; use during calm moments.</div>
+          <input id="triInput" placeholder="e.g. 1,2,3,4" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;border:0;background:rgba(255,255,255,0.02)" />
+          <div style="margin-top:8px;display:flex;gap:8px"><button id="solveTri">Solve</button><button id="showSteps">Show Steps</button></div>
+          <pre id="triOutput" style="white-space:pre-wrap;margin-top:8px;color:var(--accent)"></pre>
+        </div>
+
+      </aside>
+
+      <main class="center card">
+        <canvas id="villaCanvas"></canvas>
+
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <div class="pill" id="statusText">Idle</div>
+          <div style="flex:1"></div>
+          <button id="toggleLeaves">Toggle Leaves</button>
+          <button id="saveState">Save State</button>
+        </div>
+
+      </main>
+    </div>
+
+    <footer>
+      <div>Built for the story of friendship, faith, puzzle & defense.</div>
+      <div>localStorage saves · simple AI</div>
+    </footer>
+  </div>
+
+  <script>
+    /* ---------- State ---------- */
+    const MAX = {house:200, fence:120, char:100};
+    const state = {
+      year: Number(localStorage.getItem('v_year')||0),
+      tame: Number(localStorage.getItem('v_tame')||0),
+      fenceOn: (localStorage.getItem('v_fence')||'on')==='on',
+      vikodaDrinks: Number(localStorage.getItem('v_vikoda')||0),
+      houseHealth: Number(localStorage.getItem('v_house')||MAX.house),
+      fenceHealth: Number(localStorage.getItem('v_fenceHealth')||MAX.fence),
+      characters: {
+        pham: {name:'Pham Hoang Hai', hp:Number(localStorage.getItem('v_pham')||MAX.char), alive:true},
+        notch: {name:'The Notch', hp:Number(localStorage.getItem('v_notch')||MAX.char), alive:true},
+        bang: {name:'Nguyen Khanh Bang', hp:Number(localStorage.getItem('v_bang')||MAX.char), alive:true}
+      },
+      zombies: [],
+      autoBattle: false,
+      simSpeed: Number(localStorage.getItem('v_simSpeed')||1)
+    };
+
+    // weapons
+    const WEAPONS = [
+      {id:'fists', name:'Fists', dmg:6, cooldown:800, type:'melee'},
+      {id:'spear', name:'Spear', dmg:14, cooldown:1200, type:'melee'},
+      {id:'crossbow', name:'Crossbow', dmg:28, cooldown:2000, type:'ranged'},
+      {id:'molotov', name:'Molotov', dmg:22, cooldown:2800, type:'ranged', aoe:8}
+    ];
+
+    // assign default weapons
+    let equipped = {pham:'spear', notch:'crossbow', bang:'spear'};
+
+    /* ---------- UI refs ---------- */
+    const houseBar = document.getElementById('houseBar');
+    const fenceBar = document.getElementById('fenceBar');
+    const fenceStatus = document.getElementById('fenceStatus');
+    const phamBar = document.getElementById('phamBar');
+    const notchBar = document.getElementById('notchBar');
+    const bangBar = document.getElementById('bangBar');
+    const zCount = document.getElementById('zCount');
+    const statusText = document.getElementById('statusText');
+
+    function pct(cur,max){ return Math.max(0,Math.min(100, Math.round((cur/max)*100))); }
+    function renderBars(){
+      houseBar.style.width = pct(state.houseHealth,MAX.house) + '%';
+      fenceBar.style.width = pct(state.fenceHealth,MAX.fence) + '%';
+      phamBar.style.width = pct(state.characters.pham.hp,MAX.char) + '%';
+      notchBar.style.width = pct(state.characters.notch.hp,MAX.char) + '%';
+      bangBar.style.width = pct(state.characters.bang.hp,MAX.char) + '%';
+      fenceStatus.textContent = state.fenceOn? 'Active' : 'Down';
+      zCount.textContent = state.zombies.length;
+    }
+
+    /* ---------- Save/Load ---------- */n
+    function saveState(){
+      localStorage.setItem('v_house', state.houseHealth);
+      localStorage.setItem('v_fenceHealth', state.fenceHealth);
+      localStorage.setItem('v_pham', state.characters.pham.hp);
+      localStorage.setItem('v_notch', state.characters.notch.hp);
+      localStorage.setItem('v_bang', state.characters.bang.hp);
+      localStorage.setItem('v_simSpeed', state.simSpeed);
+      localStorage.setItem('v_fence', state.fenceOn? 'on':'off');
+      localStorage.setItem('v_vikoda', state.vikodaDrinks);
+    }
+
+    document.getElementById('saveState').addEventListener('click', ()=>{ saveState(); alert('Saved.'); });
+
+    /* ---------- Weapons UI ---------- */
+    function populateWeapons(){
+      ['phamWeapon','notchWeapon','bangWeapon'].forEach(id=>{
+        const sel = document.getElementById(id); sel.innerHTML='';
+        WEAPONS.forEach(w=>{ const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; sel.appendChild(o) });
+      });
+      document.getElementById('phamWeapon').value = equipped.pham;
+      document.getElementById('notchWeapon').value = equipped.notch;
+      document.getElementById('bangWeapon').value = equipped.bang;
+    }
+    populateWeapons();
+    document.getElementById('phamWeapon').addEventListener('change', e=>{ equipped.pham = e.target.value });
+    document.getElementById('notchWeapon').addEventListener('change', e=>{ equipped.notch = e.target.value });
+    document.getElementById('bangWeapon').addEventListener('change', e=>{ equipped.bang = e.target.value });
+
+    /* ---------- Character actions ---------- */
+    function attack(attackerId, target){
+      const attacker = state.characters[attackerId]; if(!attacker || !attacker.alive) return;
+      const w = WEAPONS.find(x=>x.id===equipped[attackerId]) || WEAPONS[0];
+      // resolve hit
+      const dmg = Math.floor(w.dmg * (0.85 + Math.random()*0.3));
+      if(target.type==='zombie'){
+        target.hp -= dmg; statusText.textContent = `${attacker.name} hits zombie for ${dmg}`;
+      } else if(target.type==='house'){
+        state.houseHealth -= Math.max(1,Math.round(dmg*0.6)); statusText.textContent = `${attacker.name} strikes house (weird)`;
+      } else if(target.type==='fence'){
+        state.fenceHealth -= Math.max(1,Math.round(dmg*0.8)); statusText.textContent = `${attacker.name} damages fence`;
+      }
+      renderBars();
+    }
+
+    function healCharacter(id){
+      const c = state.characters[id]; if(!c || !c.alive) return; const amt = 12 + Math.floor(Math.random()*10); c.hp = Math.min(MAX.char, c.hp + amt); statusText.textContent = `${c.name} heals ${amt} HP`;
+      renderBars();
+    }
+
+    document.getElementById('phamAttack').addEventListener('click', ()=>{ // target nearest zombie
+      const z = state.zombies[0]; if(z) attack('pham', z); else statusText.textContent='No zombie to attack.';
+    });
+    document.getElementById('notchAttack').addEventListener('click', ()=>{ const z = state.zombies[0]; if(z) attack('notch', z); else statusText.textContent='No zombie to attack.'; });
+    document.getElementById('bangAttack').addEventListener('click', ()=>{ const z = state.zombies[0]; if(z) attack('bang', z); else statusText.textContent='No zombie to attack.'; });
+    document.getElementById('phamHeal').addEventListener('click', ()=>healCharacter('pham'));
+    document.getElementById('notchHeal').addEventListener('click', ()=>healCharacter('notch'));
+    document.getElementById('bangHeal').addEventListener('click', ()=>healCharacter('bang'));
+
+    /* ---------- Repair / Fortify ---------- */
+    document.getElementById('repairFence').addEventListener('click', ()=>{ state.fenceHealth = Math.min(MAX.fence, state.fenceHealth + 30); state.fenceOn = true; statusText.textContent='Fence repaired.'; renderBars(); });
+    document.getElementById('fortifyHouse').addEventListener('click', ()=>{ state.houseHealth = Math.min(MAX.house, state.houseHealth + 40); statusText.textContent='House fortified.'; renderBars(); });
+
+    /* ---------- Triangular sum (unchanged) ---------- */
+    function triangularSum(arr){
+      const steps = []; let level = arr.slice(); steps.push(level.slice()); while(level.length>1){ const next=[]; for(let i=0;i<level.length-1;i++) next.push(level[i]+level[i+1]); level=next; steps.push(level.slice()); }
+      return {top: level[0], steps}
+    }
+    document.getElementById('solveTri').addEventListener('click', ()=>{ const raw = document.getElementById('triInput').value.trim(); if(!raw){document.getElementById('triOutput').textContent='Please enter numbers.';return} const nums = raw.split(',').map(s=>Number(s.trim())).filter(n=>!Number.isNaN(n)); if(nums.length<2){document.getElementById('triOutput').textContent='Enter at least two numbers.';return} const res = triangularSum(nums); document.getElementById('triOutput').textContent = `Top value: ${res.top}`; })
+    document.getElementById('showSteps').addEventListener('click', ()=>{ const raw = document.getElementById('triInput').value.trim(); if(!raw){document.getElementById('triOutput').textContent='Please enter numbers.';return} const nums = raw.split(',').map(s=>Number(s.trim())).filter(n=>!Number.isNaN(n)); if(nums.length<2){document.getElementById('triOutput').textContent='Enter at least two numbers.';return} const res = triangularSum(nums); let txt=''; res.steps.forEach((lvl,i)=>{ txt += `Level ${i}: [${lvl.join(', ')}]
+` }); txt += `
+Final top: ${res.top}`; document.getElementById('triOutput').textContent = txt; })
+
+    /* ---------- Canvas & Entities ---------- */
+    const canvas = document.getElementById('villaCanvas'); const ctx = canvas.getContext('2d'); let w=0,h=0; function resize(){ w=canvas.width=canvas.clientWidth*devicePixelRatio; h=canvas.height=canvas.clientHeight*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0) } window.addEventListener('resize',resize); setTimeout(resize,30)
+    const villa = {x:0.5,y:0.65,size:120};
+
+    function spawnZombie(type){
+      const z = {id:Date.now()+Math.random(), x: Math.random()*canvas.clientWidth, y:-40 + Math.random()*20, speed:0.3+Math.random()*0.6, maxHp: 18 + Math.floor(Math.random()*32), hp: 18 + Math.floor(Math.random()*32), atk:4 + Math.floor(Math.random()*6)};
+      state.zombies.push(z); document.getElementById('zCount').textContent = state.zombies.length;
+    }
+
+    document.getElementById('spawnWave').addEventListener('click', ()=>{ for(let i=0;i<6;i++) spawnZombie(); statusText.textContent='Wave spawned.' });
+
+    // simulation parameters
+    let lastTick = performance.now();
+    function simTick(now){
+      const dt = (now - lastTick) * 0.001 * state.simSpeed; lastTick = now;
+      // zombies move toward villa; if reach fence/house, attack
+      for(let i=state.zombies.length-1;i>=0;i--){
+        const z = state.zombies[i]; z.y += (z.speed * 60) * dt;
+        // if passes fence line (~villa y + 40)
+        const villaY = canvas.clientHeight * villa.y;
+        if(z.y >= villaY + 30){
+          // attack fence first if present
+          if(state.fenceOn && state.fenceHealth>0){ state.fenceHealth -= z.atk * dt * (1 + Math.random()*0.6); statusText.textContent = 'Zombie attacks the fence!'; }
+          else { state.houseHealth -= z.atk * dt * (1 + Math.random()*0.6); statusText.textContent = 'Zombie hits the house!'; }
+          // zombie takes slight recoil/dmg when attacking strong fence
+          if(state.fenceOn) z.hp -= 0.2 * dt * 20;
+        }
+        // remove dead zombies
+        if(z.hp <= 0){ state.zombies.splice(i,1); }
+      }
+
+      // characters auto-target nearest zombie when autoBattle is on
+      if(state.autoBattle){ ['pham','notch','bang'].forEach(id=>{
+        const c = state.characters[id]; if(!c.alive) return; if(c._cooldown && c._cooldown>now) return; const z = state.zombies[0]; if(!z) return;
+        // perform attack
+        const w = WEAPONS.find(x=>x.id===equipped[id]) || WEAPONS[0]; const dmg = Math.floor(w.dmg * (0.85 + Math.random()*0.3)); z.hp -= dmg; c._cooldown = now + w.cooldown; statusText.textContent = `${c.name} auto-attacks zombie for ${dmg}`;
+      }) }
+
+      // zombies can attack characters randomly if close to villa (chance)
+      if(state.zombies.length>0){ state.zombies.forEach(z=>{
+        if(Math.random() < 0.002 * state.simSpeed){ // stray attack on a character near fence
+          const targetKeys = Object.keys(state.characters); const tid = targetKeys[Math.floor(Math.random()*targetKeys.length)]; const c = state.characters[tid]; if(c.alive){ const dmg = Math.floor( z.atk * (0.6 + Math.random()*1.0) ); c.hp -= dmg; statusText.textContent = `Zombie hits ${c.name} for ${dmg}`; if(c.hp<=0){ c.alive=false; statusText.textContent = `${c.name} has fallen!`; }
+          }
+        }
+      }) }
+
+      // clamp & regen simple logic
+      if(state.fenceHealth <= 0){ state.fenceOn=false; }
+      if(state.houseHealth <= 0){ state.houseHealth = 0; statusText.textContent = 'House destroyed!'; }
+
+      renderBars();
+      requestAnimationFrame(simTick);
+    }
+    requestAnimationFrame(simTick);
+
+    /* ---------- Draw loop ---------- */
+    function draw(){
+      ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+      // background sky & mountains
+      ctx.fillStyle = '#052028'; ctx.fillRect(0, canvas.clientHeight*0.6, canvas.clientWidth, canvas.clientHeight*0.4);
+      // villa
+      const vx = canvas.clientWidth*0.5, vy = canvas.clientHeight*villa.y;
+      // house
+      ctx.fillStyle = '#12323a'; ctx.fillRect(vx-110, vy-70, 220, 110);
+      ctx.fillStyle = '#0e5b4e'; ctx.fillRect(vx-80, vy-40, 60, 60);
+      // fence
+      ctx.strokeStyle = state.fenceOn ? '#9fe3d9' : '#5a7278'; ctx.lineWidth = state.fenceOn?6:3;
+      for(let i=0;i<12;i++){ ctx.beginPath(); ctx.moveTo(vx-140 + i*26, vy+40); ctx.lineTo(vx-140 + i*26, vy+70); ctx.stroke(); }
+
+      // wolf (companion) near villa
+      ctx.beginPath(); ctx.fillStyle='#dfeef0'; ctx.ellipse(vx+90, vy+10, 22,14,0,0,Math.PI*2); ctx.fill();
+
+      // draw zombies
+      for(let i=0;i<state.zombies.length;i++){
+        const z = state.zombies[i]; ctx.fillStyle = '#6b2b2b'; ctx.fillRect(z.x-8, z.y, 16,24);
+        // small healthbar above zombie
+        const hpPct = Math.max(0, z.hp / z.maxHp);
+        ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(z.x-10, z.y-6, 40,4);
+        ctx.fillStyle = '#ff7b7b'; ctx.fillRect(z.x-10, z.y-6, 40*hpPct,4);
+      }
+
+      // character markers
+      const chars = ['pham','notch','bang'];
+      chars.forEach((id, idx)=>{
+        const cx = 60 + idx*100; const cy = canvas.clientHeight - 60; ctx.fillStyle='#112f2d'; ctx.fillRect(cx-18, cy-24, 36,36);
+        ctx.fillStyle='#fff'; ctx.fillText(state.characters[id].name.split(' ')[0], cx-24, cy+24);
+      });
+
+      // HUD text
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font='12px system-ui'; ctx.fillText('Advanced Battle Simulation — Villa Defence', 14, 18);
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+
+    /* ---------- Auto Battle toggle & sim speed ---------- */
+    document.getElementById('toggleAuto').addEventListener('click', ()=>{ state.autoBattle = !state.autoBattle; statusText.textContent = 'Auto-Battle: ' + (state.autoBattle? 'ON':'OFF'); });
+    document.getElementById('simSpeed').addEventListener('input', e=>{ state.simSpeed = Number(e.target.value); });
+
+    /* ---------- Leaves (unchanged) ---------- */
+    let leavesOn = true; const leafTypes = ['🍂','🍃','🍁'];
+    function createLeaf(){ if(!leavesOn) return; const el = document.createElement('div'); el.className='leaf'; el.style.position='fixed'; el.style.left = Math.random()*100 + '%'; el.style.top = '-6%'; el.style.fontSize = (8+Math.random()*28)+'px'; el.textContent=leafTypes[Math.floor(Math.random()*leafTypes.length)]; document.body.appendChild(el); const dur = 8000 + Math.random()*9000; el.animate([{transform:'translateY(0) rotate(0deg)'},{transform:`translateY(${window.innerHeight+100}px) rotate(${Math.random()*720-360}deg)`}],{duration:dur,iterations:1,easing:'linear'}); setTimeout(()=>el.remove(), dur+60); }
+    let leafInterval = setInterval(createLeaf, 700);
+    document.getElementById('toggleLeaves').addEventListener('click', ()=>{ leavesOn=!leavesOn; if(leavesOn){leafInterval = setInterval(createLeaf,700);} else{clearInterval(leafInterval); document.querySelectorAll('.leaf').forEach(n=>n.remove())}})
+
+    /* ---------- Periodic cleanup and small AI ------ */
+    setInterval(()=>{
+      // characters passive regen small
+      Object.values(state.characters).forEach(c=>{ if(c.alive && c.hp < MAX.char) c.hp += 0.4; if(c.hp>MAX.char) c.hp=MAX.char; });
+      // remove off-screen zombies
+      for(let i=state.zombies.length-1;i>=0;i--){ if(state.zombies[i].y > canvas.clientHeight+100) state.zombies.splice(i,1); }
+      renderBars();
+    }, 1200);
+
+    // small keyboard shortcuts
+    window.addEventListener('keydown', e=>{
+      if(e.key==='a') document.getElementById('spawnWave').click();
+      if(e.key==='r') document.getElementById('repairFence').click();
+      if(e.key==='1') document.getElementById('phamAttack').click();
+      if(e.key==='2') document.getElementById('notchAttack').click();
+      if(e.key==='3') document.getElementById('bangAttack').click();
+    });
+
+    // initial render
+    renderBars();
+    // small convenience: load some zombies over time
+    setTimeout(()=>{ for(let i=0;i<4;i++) spawnZombie(); }, 700);
+
+    // autosave
+    setInterval(saveState, 8000);
+  </script>
+</body>
+</html>

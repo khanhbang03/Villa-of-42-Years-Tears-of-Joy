@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Villa of 42 Years — Tears, Wolves & Leaves</title>
+  <style>
+    :root{--bg:#07111a;--card:#0f2430;--accent:#6ad3ff;--muted:#9fb7c2}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{background:linear-gradient(180deg,var(--bg) 0%, #06202a 60%);color:#e6f7fb;overflow:hidden}
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;backdrop-filter:blur(6px)}
+    h1{font-size:20px;margin:0;letter-spacing:0.6px}
+    .sub{color:var(--muted);font-size:12px}
+
+    .stage{position:absolute;inset:84px 24px 24px;border-radius:12px;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12));box-shadow:0 10px 30px rgba(2,12,18,0.6);overflow:hidden}
+
+    /* left column */
+    .layout{display:flex;height:100%}
+    .left{width:420px;min-width:320px;padding:12px;display:flex;flex-direction:column;gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:12px;box-shadow:0 6px 16px rgba(0,0,0,0.4);}
+    .controls button{margin-right:8px}
+
+    /* central interactive area */
+    .center{flex:1;padding:12px;display:flex;flex-direction:column}
+    #villaCanvas{flex:1;border-radius:10px;background:linear-gradient(180deg,#071624,#0b2b34);width:100%}
+
+    .row{display:flex;gap:10px;align-items:center}
+    .muted{color:var(--muted)}
+
+    /* leaves effect */
+    .leaf{position:fixed;pointer-events:none;z-index:80;will-change:transform;opacity:0.95}
+
+    /* tiny UI elements */
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:13px}
+    .progress{height:12px;background:rgba(255,255,255,0.05);border-radius:8px;overflow:hidden}
+    .progress > b{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#2dd4bf);width:0%}
+
+    footer{display:flex;justify-content:space-between;padding:8px 16px;color:var(--muted);font-size:13px}
+
+    /* responsive */
+    @media (max-width:900px){.left{display:none}.stage{inset:72px 12px 12px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Villa of 42 Years — Tears of Joy</h1>
+      <div class="sub">Pham Hoang Hai · The Notch · Nguyen Khanh Bang — an interactive tribute</div>
+    </div>
+    <div class="sub">Stable build · leaves enabled</div>
+  </header>
+
+  <div class="stage">
+    <div class="layout">
+      <aside class="left">
+        <div class="card">
+          <strong>Timeline — 42 years</strong>
+          <div class="muted" id="yearLabel">Year: 0 / 42</div>
+          <div class="progress" title="Taming progress" style="margin-top:8px"><b id="tameBar"></b></div>
+          <div style="margin-top:10px" class="muted">Wolf: <span id="wolfMood">Calm</span></div>
+          <div style="margin-top:8px">
+            <button id="advanceYear">Advance Year</button>
+            <button id="resetTimeline">Reset</button>
+          </div>
+        </div>
+
+        <div class="card controls">
+          <strong>Villa Systems</strong>
+          <div style="margin-top:8px" class="row">
+            <button id="toggleFence">Toggle Fence</button>
+            <button id="toggleZombies">Toggle Zombie Waves</button>
+            <button id="drinkWater">Drink Vikoda Water</button>
+          </div>
+          <p class="muted" style="margin-top:8px">Fence strength: <span id="fenceStrength">High</span></p>
+        </div>
+
+        <div class="card">
+          <strong>Stoic Gospel Advice</strong>
+          <div id="advice" style="margin-top:10px" class="muted">"Blessed are the meek..."</div>
+          <div style="margin-top:8px">
+            <button id="nextAdvice">Next Advice</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Triangular Sum Puzzle</strong>
+          <div class="muted" style="margin-top:8px">Enter a list of numbers (comma separated). The game repeatedly sums adjacent pairs to create a triangular sum.</div>
+          <input id="triInput" placeholder="e.g. 1,2,3,4" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;border:0;background:rgba(255,255,255,0.02)" />
+          <div style="margin-top:8px;display:flex;gap:8px"><button id="solveTri">Solve</button><button id="showSteps">Show Steps</button></div>
+          <pre id="triOutput" style="white-space:pre-wrap;margin-top:8px;color:var(--accent)"></pre>
+        </div>
+
+      </aside>
+
+      <main class="center card">
+        <canvas id="villaCanvas"></canvas>
+
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <div class="pill" id="zombieCount">Zombies: 0</div>
+          <div class="pill" id="waterCount">Vikoda Drinks: 0</div>
+          <div style="flex:1"></div>
+          <button id="toggleLeaves">Toggle Leaves</button>
+          <button id="saveState">Save State</button>
+        </div>
+
+      </main>
+    </div>
+
+    <footer>
+      <div>Built for the story of friendship, faith & coding puzzles.</div>
+      <div>Open-source-friendly · localStorage saves</div>
+    </footer>
+  </div>
+
+  <script>
+    /* --- Simple state/store --- */
+    const state = {
+      year: Number(localStorage.getItem('v_year')||0),
+      tame: Number(localStorage.getItem('v_tame')||0),
+      wolfMood: localStorage.getItem('v_mood')||'Calm',
+      fence: (localStorage.getItem('v_fence')||'on')==='on',
+      zombies: false,
+      vikodaDrinks: Number(localStorage.getItem('v_vikoda')||0)
+    };
+
+    const yearLabel = document.getElementById('yearLabel');
+    const tameBar = document.getElementById('tameBar');
+    const wolfMood = document.getElementById('wolfMood');
+    const fenceStrength = document.getElementById('fenceStrength');
+    const zombieCountBadge = document.getElementById('zombieCount');
+    const waterCountBadge = document.getElementById('waterCount');
+
+    function renderState(){
+      yearLabel.textContent = `Year: ${state.year} / 42`;
+      tameBar.style.width = Math.min(100, (state.tame/42)*100) + '%';
+      wolfMood.textContent = state.wolfMood;
+      fenceStrength.textContent = state.fence ? 'High' : 'Low';
+      zombieCountBadge.textContent = `Zombies: ${window._zcount||0}`;
+      waterCountBadge.textContent = `Vikoda Drinks: ${state.vikodaDrinks}`;
+    }
+
+    // timeline controls
+    document.getElementById('advanceYear').addEventListener('click', ()=>{
+      if(state.year<42){ state.year++; state.tame += Math.random()*1.4 + 0.8; if(state.tame>42) state.tame=42; if(state.tame>30) state.wolfMood='Loyal'; if(state.tame>10 && state.tame<30) state.wolfMood='Curious'; saveToLocal(); renderState() }
+    });
+    document.getElementById('resetTimeline').addEventListener('click', ()=>{ if(confirm('Reset 42-year progress?')){state.year=0;state.tame=0;state.wolfMood='Calm';saveToLocal();renderState()}})
+
+    // systems
+    document.getElementById('toggleFence').addEventListener('click', ()=>{state.fence=!state.fence;saveToLocal();renderState();})
+    document.getElementById('toggleZombies').addEventListener('click', ()=>{state.zombies=!state.zombies;startZombieWaves(state.zombies)})
+    document.getElementById('drinkWater').addEventListener('click', ()=>{state.vikodaDrinks++;state.tame+=0.3;state.wolfMood='Refreshed';saveToLocal();renderState();})
+
+    document.getElementById('saveState').addEventListener('click', ()=>{saveToLocal();alert('State saved locally (localStorage)')})
+
+    function saveToLocal(){localStorage.setItem('v_year', state.year);localStorage.setItem('v_tame', state.tame);localStorage.setItem('v_mood', state.wolfMood);localStorage.setItem('v_fence', state.fence? 'on':'off');localStorage.setItem('v_vikoda', state.vikodaDrinks)}
+
+    // Stoic gospel advice (short, inspirational quotes)
+    const ADVICE = [
+      'Blessed are the meek: quiet strength changes hearts.',
+      'Sorrow watered seeds of gratitude; joy grows from sharing.',
+      'Walk steady. The villa is built with patience and faith.',
+      'Tame the wolf in you: kindness is the strongest fence.'
+    ];
+    let advIdx = 0; document.getElementById('advice').textContent = ADVICE[advIdx];
+    document.getElementById('nextAdvice').addEventListener('click', ()=>{advIdx=(advIdx+1)%ADVICE.length;document.getElementById('advice').textContent=ADVICE[advIdx]})
+
+    /* --- Triangular sum puzzle --- */
+    function triangularSum(arr){
+      // calculate the final top value by repeated adjacent sums
+      const steps = [];
+      let level = arr.slice();
+      steps.push(level.slice());
+      while(level.length>1){
+        const next = [];
+        for(let i=0;i<level.length-1;i++) next.push(level[i]+level[i+1]);
+        level=next; steps.push(level.slice());
+      }
+      return {top: level[0], steps}
+    }
+
+    document.getElementById('solveTri').addEventListener('click', ()=>{
+      const raw = document.getElementById('triInput').value.trim(); if(!raw){document.getElementById('triOutput').textContent='Please enter numbers.';return}
+      const nums = raw.split(',').map(s=>Number(s.trim())).filter(n=>!Number.isNaN(n)); if(nums.length<2){document.getElementById('triOutput').textContent='Enter at least two numbers.';return}
+      const res = triangularSum(nums);
+      document.getElementById('triOutput').textContent = `Top value: ${res.top}`;
+    })
+    document.getElementById('showSteps').addEventListener('click', ()=>{
+      const raw = document.getElementById('triInput').value.trim(); if(!raw){document.getElementById('triOutput').textContent='Please enter numbers.';return}
+      const nums = raw.split(',').map(s=>Number(s.trim())).filter(n=>!Number.isNaN(n)); if(nums.length<2){document.getElementById('triOutput').textContent='Enter at least two numbers.';return}
+      const res = triangularSum(nums);
+      let txt = '';
+      res.steps.forEach((lvl,i)=>{ txt += `Level ${i}: [${lvl.join(', ')}]\n` });
+      txt += `\nFinal top: ${res.top}`;
+      document.getElementById('triOutput').textContent = txt;
+    })
+
+    /* --- Canvas: villa + zombies simulation (lightweight) --- */
+    const canvas = document.getElementById('villaCanvas');
+    const ctx = canvas.getContext('2d');
+    let w=0,h=0; function resize(){w=canvas.width=canvas.clientWidth*devicePixelRatio;h=canvas.height=canvas.clientHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}
+    window.addEventListener('resize',resize); setTimeout(resize,30)
+
+    const villa = {x:0.5,y:0.65,size:120};
+    window._zcount = 0; const zombies = [];
+
+    function spawnZombie(){
+      const z = {x: Math.random()*canvas.clientWidth, y:-40 + Math.random()*20, speed:0.3+Math.random()*0.6, hp:1+Math.random()*2};
+      zombies.push(z); window._zcount=zombies.length; renderState();
+    }
+
+    function startZombieWaves(on){
+      if(on){ window._zInt = setInterval(()=>{ spawnZombie(); if(Math.random()<0.15) spawnZombie(); }, 900); }
+      else{ clearInterval(window._zInt); }
+    }
+
+    function draw(){
+      // background
+      ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+      // distant mountains
+      ctx.fillStyle = '#052028'; ctx.fillRect(0, canvas.clientHeight*0.6, canvas.clientWidth, canvas.clientHeight*0.4);
+      // villa (simple)
+      const vx = canvas.clientWidth*0.5, vy = canvas.clientHeight*villa.y;
+      ctx.fillStyle = '#12323a'; ctx.fillRect(vx-110, vy-70, 220, 110);
+      ctx.fillStyle = '#0e5b4e'; ctx.fillRect(vx-80, vy-40, 60, 60);
+      // fence
+      ctx.strokeStyle = state.fence ? '#9fe3d9' : '#5a7278'; ctx.lineWidth = state.fence?6:3;
+      for(let i=0;i<12;i++){ ctx.beginPath(); ctx.moveTo(vx-140 + i*26, vy+40); ctx.lineTo(vx-140 + i*26, vy+70); ctx.stroke(); }
+
+      // draw wolf near villa
+      ctx.beginPath(); ctx.fillStyle='#dfeef0'; ctx.ellipse(vx+90, vy+10, 22,14,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#0b2d2b'; ctx.fillRect(vx+80, vy+2,6,6);
+
+      // zombies
+      for(let i=zombies.length-1;i>=0;i--){
+        const z = zombies[i]; z.y += z.speed * (1 + (state.fence?0.4:1.2)); ctx.fillStyle = '#6b2b2b'; ctx.fillRect(z.x-8, z.y, 16,24);
+        if(z.y > canvas.clientHeight){ zombies.splice(i,1); window._zcount=zombies.length; renderState(); }
+      }
+
+      // HUD text
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font='12px system-ui'; ctx.fillText('Villa of 42 Years — interactive panorama', 14, 18);
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+
+    /* --- simple leaves effect (stable version) --- */
+    let leavesOn = true; const leafTypes = ['🍂','🍃','🍁'];
+    function createLeaf(){
+      if(!leavesOn) return;
+      const el = document.createElement('div'); el.className='leaf'; el.style.left = Math.random()*100 + '%'; el.style.top = '-6%'; el.style.fontSize = (8+Math.random()*28)+'px'; el.textContent=leafTypes[Math.floor(Math.random()*leafTypes.length)]; document.body.appendChild(el);
+      const dur = 8000 + Math.random()*9000; el.animate([{transform:'translateY(0) rotate(0deg)'},{transform:`translateY(${window.innerHeight+100}px) rotate(${Math.random()*720-360}deg)`}],{duration:dur,iterations:1,easing:'linear'});
+      setTimeout(()=>el.remove(), dur+60);
+    }
+    let leafInterval = setInterval(createLeaf, 700);
+    document.getElementById('toggleLeaves').addEventListener('click', ()=>{leavesOn=!leavesOn; if(leavesOn){leafInterval = setInterval(createLeaf,700);} else{clearInterval(leafInterval); document.querySelectorAll('.leaf').forEach(n=>n.remove())}})
+
+    /* start/restore state */
+    renderState(); if(state.zombies) startZombieWaves(true);
+
+    // auto-save periodically
+    setInterval(saveToLocal, 7000);
+
+    /* --- Light AI-like dialogues (no external API) --- */
+    const dialogues = [
+      'Hai: "Remember when we solved the triangular sum? Tears of joy."',
+      'Notch: "We built the fence for each other. Faith kept it strong."',
+      'Bang: "Vikoda water tastes like memory and mountains."'
+    ];
+    let dIdx = 0; setInterval(()=>{ document.title = dialogues[dIdx%dialogues.length]; dIdx++ }, 6000);
+
+    /* --- zombie waves starter controlled above --- */
+
+    /* --- quick accessibility: keyboard shortcuts --- */
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='z') document.getElementById('toggleZombies').click();
+      if(e.key==='l') document.getElementById('toggleLeaves').click();
+      if(e.key==='s') document.getElementById('saveState').click();
+    })
+
+    // init: small polish
+    (function(){
+      renderState(); for(let i=0;i<6;i++) createLeaf();
+    })();
+
+  </script>
+</body>
+</html>
